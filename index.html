@@ -16,7 +16,6 @@
     --f-stat:clamp(22px, 6vw, 28px);
     --f-hint:12px;
 
-    /* slightly smaller arrows */
     --arrow-size:clamp(20px, 5.5vw, 24px);
   }
 
@@ -33,7 +32,6 @@
   .panel{background:var(--bg-1);border-radius:16px;padding:14px;border:1px solid #262b31;box-shadow:0 6px 24px rgba(0,0,0,.35) inset;margin-bottom:12px}
 
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
-  /* allow grid items to shrink so nothing overflows */
   .grid > .tile{min-width:0}
   @media (max-width:360px){.grid{grid-template-columns:1fr}}
 
@@ -42,7 +40,6 @@
 
   .section-title{margin:8px 0 10px;text-align:center;font-size:18px;font-weight:800;color:#fff}
 
-  /* flanked control — give the middle column a safe min width */
   .control-flank{
     display:grid;
     grid-template-columns:var(--arrow-size) minmax(9ch, 1fr) var(--arrow-size);
@@ -55,17 +52,15 @@
     font-weight:900;display:flex;align-items:center;justify-content:center;
     user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
     font-size:14px;cursor:pointer;
-    touch-action:manipulation; /* reduce double-tap zoom on these */
+    touch-action:manipulation;
   }
 
   .chip-input,.chip-select{
     background:var(--chip);
     border:1px solid #000;border-radius:8px;color:#fff;
     font-weight:700;font-size:var(--f-chip);
-    padding:10px 2.8em 10px .75em; /* reserve suffix space in em */
+    padding:10px 2.8em 10px .75em;
     width:100%;display:block;text-align:center;
-
-    /* anti-clipping */
     overflow:visible;text-overflow:initial;line-height:1.2;
   }
   .chip-input{appearance:textfield; caret-color:#e8edf3;}
@@ -81,7 +76,6 @@
     touch-action:manipulation;
   }
 
-  /* Tabular digits; inputs use sans to avoid iOS mono clipping */
   .mono{font-variant-numeric:tabular-nums;font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
   input.mono, select.mono{
     font-family:ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
@@ -105,7 +99,6 @@
   .stat .hint{color:#9aa3ad;font-size:var(--f-hint)}
   .stat--with-hint .hint{display:block}
 
-  /* lightweight reference styles */
   .ref-text{color:#cfd5dc;line-height:1.5;font-size:13px}
   .ref-text h4{margin:6px 0 6px;font-size:14px;color:#e3e7ec}
   .ref-text ul{margin:6px 0 0 16px;padding:0}
@@ -125,7 +118,6 @@
       <div class="tile">
         <h3>Putt Length</h3>
         <div class="control-flank">
-          <!-- Left = DOWN, Right = UP -->
           <button class="chev" data-step="d" data-delta="-1" aria-label="Decrease length">▼</button>
           <div class="input-suffix">
             <input id="lenInput" class="chip-input mono" type="number" step="0.1" min="0.1" value="12" inputmode="decimal" aria-label="Putt length in feet" />
@@ -138,19 +130,28 @@
       <div class="tile">
         <h3>Stimp Speed</h3>
         <select id="stimpSelect" class="chip-select mono" aria-label="Stimp speed">
-          <option value="8">8 (Slow/Avg)</option>
-          <option value="10" selected>10 (Fast)</option>
-          <option value="12">12 (PGA)</option>
+          <option value="8">8 — Slow/Avg</option>
+          <option value="10" selected>10 — Fast</option>
+          <option value="12">12 — Tour</option>
         </select>
       </div>
     </div>
+
+    <!-- Miss Speed (roll-out) toggle + tile (hidden by default) -->
+    <div class="tile" id="missTile" style="display:none; margin-bottom:12px">
+      <h3>Miss Speed</h3>
+      <select id="rollSelect" class="chip-select mono" aria-label="Miss speed (roll-out)">
+        <option value="12">12″ (softer, more break)</option>
+        <option value="18" selected>18″ (firmer, less break)</option>
+      </select>
+    </div>
+    <button id="btnMissToggle" class="btn btn--gray" aria-expanded="false" style="margin-bottom:12px">Show Miss Speed (18″)</button>
 
     <div class="section-title">Slope</div>
     <div class="grid" style="margin-bottom:12px">
       <div class="tile">
         <button id="btnUphill" class="btn btn--green" aria-pressed="true">Uphill</button>
         <div class="control-flank" style="margin-top:8px">
-          <!-- Left = DOWN, Right = UP -->
           <button class="chev" data-step="ud" data-delta="-0.5" aria-label="Decrease up/down slope">▼</button>
           <div class="input-suffix">
             <input id="udInput" class="chip-input mono" type="number" step="0.5" min="0" max="4" value="2" inputmode="decimal" aria-label="Up/Down slope percent" />
@@ -181,14 +182,13 @@
         <div id="playsLike" class="value mono">—</div>
         <div class="hint">(Flat @ Stimp 10)</div>
       </div>
-      <div class="stat">
+      <div class="stat stat--with-hint">
         <div class="label">Aim from Center</div>
         <div id="aimBig" class="value mono">—</div>
         <div id="aimHint" class="hint mono" style="display:none">—</div>
       </div>
     </div>
 
-    <!-- More info button -->
     <button id="btnMoreInfo" class="btn btn--gray">More info →</button>
   </div>
 
@@ -198,14 +198,15 @@
       <h3>Current calculation context</h3>
       <div id="factorLine" class="mono" style="margin:6px 0 4px;color:#cfd5dc">factor = — (D×factor)</div>
       <div id="multLine" class="mono" style="margin:4px 0;color:#cfd5dc">break multiplier = —</div>
-      <div class="mono" style="margin-top:6px;color:#9aa3ad">Notes: Stimp options 8/10/12. Slope inputs 0–4% in 0.5% steps.</div>
+      <div id="rollLine" class="mono" style="margin:4px 0;color:#cfd5dc">miss speed = —</div>
+      <div class="mono" style="margin-top:6px;color:#9aa3ad">Notes: Stimp 8/10/12. Miss speed 12″ or 18″. Slope inputs 0–4% in 0.5% steps.</div>
     </div>
 
     <!-- Stimp 10 quick reference + multipliers -->
     <div class="tile" style="margin-bottom:12px">
       <h3>Stimp-10 reference</h3>
       <div class="ref-text">
-        <div class="ref-note">(break starting points on a flat depth green)</div>
+        <div class="ref-note">(break starting points on a flat-depth green)</div>
         <ul>
           <li><span class="mono">1%</span>: Often looks straight; aim outside-edge from <span class="mono">5′</span>.</li>
           <li><span class="mono">2%</span>: Clear break; outside-edge from <span class="mono">3′</span>.</li>
@@ -224,7 +225,7 @@
 
     <!-- Downhill table -->
     <div class="tile" style="margin-bottom:12px">
-      <h3>Downhill <span class="ref-note">(plays longer)</span></h3>
+      <h3>Downhill <span class="ref-note">(plays shorter)</span></h3>
       <div class="ref-text">
         <p><span class="mono">1%</span> – Gentle (roughly <span class="mono">2.5/3</span> of the “Plays like flat @ 10 stimp” distance)<br>
           • <span class="mono">3′ (2′6″)</span> · <span class="mono">6′ (4′11″)</span> · <span class="mono">12′ (9′10″)</span> · <span class="mono">24′ (19′8″)</span> · <span class="mono">48′ (39′5″)</span></p>
@@ -252,28 +253,85 @@
       </div>
     </div>
 
-    <!-- Back button -->
     <button id="btnBack" class="btn btn--gray">← Back to calculator</button>
   </div>
 </div>
 
 <script>
-  const K10 = 0.179;
-  function ftToString(ft){ const inches = Math.round(ft*12); const f=Math.floor(inches/12); const i=Math.abs(inches%12); return `${f}' ${i}\"`; }
-  function clampSlope(v){ const c=Math.min(4,Math.max(0,v)); return Math.round(c*2)/2; }
-  function computePlaysLikeFeet(D,S,pct,isDown){ const base=10/S; const factor= base + (isDown?-1:1)*(K10*pct); const eff=Math.max(0.5,D*factor); return {eff,factor,base}; }
-  function computeBreakMultiplier(base,pct,isDown){ const denom= base + (isDown?-1:1)*(K10*pct); if(denom<=0.02) return {mult:8,capped:true}; const m=base/denom; return {mult:Math.min(8,m),capped:m>8}; }
-  function computeAimInches(D,S,lrPct,udPct,isDown){ if(lrPct<=0) return {inches:0,mult:1,capped:false}; const per9At10=5*lrPct; const scaleFlat=(S/10)*(D/9); const aimFlat=per9At10*scaleFlat; const {mult,capped}=computeBreakMultiplier(10/S,udPct,isDown); return {inches:Math.round(aimFlat*mult),mult,capped}; }
+  /* ---- Constants & helpers ---- */
+  const K10 = 0.179;              // uphill/downhill coupling constant for Stimp 10
+  const HOLE_RADIUS_IN = 2.125;   // inches
+  const R0_IN = 15;               // baseline roll-out (implied by the 5"/9ft/1% constant)
 
+  function ftToString(ft){
+    const inches = Math.round(ft*12);
+    const f=Math.floor(inches/12);
+    const i=Math.abs(inches%12);
+    return `${f}' ${i}"`;
+  }
+  function clampSlope(v){ const c=Math.min(4,Math.max(0,v)); return Math.round(c*2)/2; }
+
+  // Format big KPI: inches, but switch to ft' in" at 12"+.
+  function formatAimInchesSmart(inches){
+    const n = Math.max(0, Math.round(inches));
+    if (n < 12) return `${n}"`;
+    const ft = Math.floor(n/12);
+    const rem = n % 12;
+    return `${ft}' ${rem}"`;
+  }
+
+  /* Plays-like distance */
+  function computePlaysLikeFeet(D,S,pct,isDown){
+    const base = 10/S;
+    const factor = base + (isDown?-1:1)*(K10*pct);
+    const eff = Math.max(0.5, D*factor);
+    return {eff,factor,base};
+  }
+
+  /* Break multiplier from up/down component */
+  function computeBreakMultiplier(base,pct,isDown){
+    const denom = base + (isDown?-1:1)*(K10*pct);
+    if(denom<=0.02) return {mult:8,capped:true};
+    const m = base/denom;
+    return {mult:Math.min(8,m),capped:m>8};
+  }
+
+  /* Roll-out (miss speed) adjustment: break ∝ 1/sqrt(R) */
+  function rollAdjFor(Rin){ return Math.sqrt(R0_IN / Rin); }
+
+  /* Aim calculation */
+  function computeAimInches(D,S,lrPct,udPct,isDown, R_in){
+    if(lrPct<=0) return {inches:0,mult:1,capped:false, toEdgeAbs:0, inside:false};
+    const per9At10 = 5 * lrPct;                     // inches per 9ft per %
+    const scaleFlat = Math.sqrt(S/10) * (D/9);      // square-root Stimp scaling
+    const aimFlat = per9At10 * scaleFlat * rollAdjFor(R_in);
+
+    const {mult,capped} = computeBreakMultiplier(10/S, udPct, isDown);
+    const aimIn = aimFlat * mult;                   // from-center inches (raw)
+
+    // Convert to "from edge" style for the small line
+    const C = Math.max(0, aimIn);
+    const T = C - HOLE_RADIUS_IN;                   // + = outside (from edge), – = inside edge
+    const inside = T < 0;
+    const toEdgeAbs = Math.abs(T);
+
+    return {inches:Math.round(C), mult, capped, toEdgeAbs, inside};
+  }
+
+  /* ---- DOM Elements ---- */
   const lenInput=document.getElementById('lenInput');
   const stimpSelect=document.getElementById('stimpSelect');
+  const rollSelect=document.getElementById('rollSelect');
   const udInput=document.getElementById('udInput');
   const lrInput=document.getElementById('lrInput');
 
   const playsLikeEl=document.getElementById('playsLike');
   const aimBigEl=document.getElementById('aimBig');
+  const aimHintEl=document.getElementById('aimHint');
+
   const factorLine=document.getElementById('factorLine');
   const multLine=document.getElementById('multLine');
+  const rollLine=document.getElementById('rollLine');
 
   const btnUphill=document.getElementById('btnUphill');
   const btnDownhill=document.getElementById('btnDownhill');
@@ -285,13 +343,23 @@
   const btnMoreInfo=document.getElementById('btnMoreInfo');
   const btnBack=document.getElementById('btnBack');
 
+  const missTile=document.getElementById('missTile');
+  const btnMissToggle=document.getElementById('btnMissToggle');
+
   let isDownhill=false; // Uphill default
   let isLTR=true;       // Left→Right default
+  let missShown=false;  // Miss Speed panel hidden by default
 
   function showPage(which){
     pagePlay.classList.toggle('on', which==='play');
     pageRef.classList.toggle('on', which==='reference');
     window.scrollTo({top:0, behavior:'instant' in window ? 'instant' : 'auto'});
+  }
+
+  function updateMissToggleLabel(){
+    const val = rollSelect ? `${rollSelect.value}″` : '—';
+    btnMissToggle.textContent = missShown ? 'Hide Miss Speed' : `Show Miss Speed (${val})`;
+    btnMissToggle.setAttribute('aria-expanded', String(missShown));
   }
 
   function update(){
@@ -300,16 +368,31 @@
     let lrPct=clampSlope(Number(lrInput.value||0));
     udInput.value=udPct; lrInput.value=lrPct;
     const S=Number(stimpSelect.value);
+    const R_in = Number(rollSelect.value); // 12 or 18
 
     const {eff,factor,base}=computePlaysLikeFeet(D,S,udPct,isDownhill);
     playsLikeEl.textContent=ftToString(eff);
 
-    const {inches,mult,capped}=computeAimInches(D,S,lrPct,udPct,isDownhill);
+    const {inches,mult,capped,toEdgeAbs,inside}=computeAimInches(D,S,lrPct,udPct,isDownhill, R_in);
     const dirWord = lrPct===0 ? '' : (isLTR ? 'Left' : 'Right');
-    aimBigEl.textContent= lrPct===0? '0\"' : `${inches}\" ${dirWord}`;
+    aimBigEl.textContent = lrPct===0 ? '0"' : `${formatAimInchesSmart(inches)} ${dirWord}`;
 
+    // Small parenthetical: "... from edge" / "inside edge"
+    if(lrPct===0){
+      aimHintEl.style.display='none';
+    }else{
+      const edgeText = inside ? `${toEdgeAbs.toFixed(1)}" inside edge` : `${toEdgeAbs.toFixed(1)}" from edge`;
+      aimHintEl.textContent = `(= ${edgeText})`;
+      aimHintEl.style.display='block';
+    }
+
+    // Reference lines
     factorLine.textContent=`factor = ${factor.toFixed(3)} (D×factor)`;
     multLine.textContent=`break multiplier = ×${mult.toFixed(2)}${capped?' (capped)':''}`;
+    const radj = rollAdjFor(R_in);
+    rollLine.textContent = `miss speed = ${R_in}" (adj ×${radj.toFixed(3)})`;
+
+    updateMissToggleLabel();
   }
 
   /* ---- Press & Hold auto-repeat for ALL arrows ---- */
@@ -344,7 +427,7 @@
   });
 
   /* Inputs/select update */
-  [lenInput,udInput,lrInput,stimpSelect].forEach(el=>el.addEventListener('input',update));
+  [lenInput,udInput,lrInput,stimpSelect,rollSelect].forEach(el=>el.addEventListener('input',update));
 
   /* Toggle U/D and L/R */
   function setUD(down){
@@ -372,11 +455,18 @@
   btnLTR.addEventListener('click',()=>setLR(true));
   btnRTL.addEventListener('click',()=>setLR(false));
 
+  /* Miss Speed show/hide */
+  btnMissToggle.addEventListener('click', ()=>{
+    missShown = !missShown;
+    missTile.style.display = missShown ? '' : 'none';
+    updateMissToggleLabel();
+  });
+
   /* Nav buttons */
   btnMoreInfo.addEventListener('click', ()=>showPage('reference'));
   btnBack.addEventListener('click', ()=>showPage('play'));
 
-  /* --- Prevent accidental double-tap zoom (keeps pinch zoom) --- */
+  /* Prevent accidental double-tap zoom (keeps pinch zoom) */
   let lastTouchEnd = 0;
   document.addEventListener('touchend', (e)=>{
     const now = Date.now();
