@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Putting Calculator — Play</title>
+<style>
+  :root{
+    --bg-0:#0f1215; --bg-1:#1b2025; --bg-2:#22272d; --chip:#0d0f12;
+    --muted:#a5adb7; --white:#ffffff; --green:#58b355;
+    --gap:12px; --radius:12px;
+
+    --f-h3:16px;
+    --f-chip:clamp(13px, 3.6vw, 15px);
+    --f-label:13px;
+    --f-stat:clamp(22px, 6vw, 28px);
+    --f-hint:12px;
+
+    /* slightly smaller arrows */
+    --arrow-size:clamp(20px, 5.5vw, 24px);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    background:var(--bg-0);color:#fff;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{max-width:480px;margin:0 auto;padding:16px 12px 28px}
+
+  .panel{background:var(--bg-1);border-radius:16px;padding:14px;border:1px solid #262b31;box-shadow:0 6px 24px rgba(0,0,0,.35) inset;margin-bottom:12px}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
+  /* allow grid items to shrink so nothing overflows */
+  .grid > .tile{min-width:0}
+  @media (max-width:360px){.grid{grid-template-columns:1fr}}
+
+  .tile{background:var(--bg-2);border-radius:var(--radius);padding:12px;border:1px solid #2b323a}
+  .tile h3{margin:0 0 8px;font-weight:700;font-size:var(--f-h3)}
+
+  .section-title{margin:8px 0 10px;text-align:center;font-size:18px;font-weight:800;color:#fff}
+
+  /* flanked control — give the middle column a safe min width */
+  .control-flank{
+    display:grid;
+    grid-template-columns:var(--arrow-size) minmax(9ch, 1fr) var(--arrow-size);
+    gap:8px;align-items:center;min-width:0;
+  }
+
+  .chev{
+    width:var(--arrow-size);height:var(--arrow-size);
+    border-radius:10px;background:#e8edf3;color:#111;
+    font-weight:900;display:flex;align-items:center;justify-content:center;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+    font-size:14px;cursor:pointer;
+    touch-action:manipulation; /* reduce double-tap zoom on these */
+  }
+
+  .chip-input,.chip-select{
+    background:var(--chip);
+    border:1px solid #000;border-radius:8px;color:#fff;
+    font-weight:700;font-size:var(--f-chip);
+    padding:10px 2.8em 10px .75em; /* reserve suffix space in em */
+    width:100%;display:block;text-align:center;
+
+    /* anti-clipping */
+    overflow:visible;text-overflow:initial;line-height:1.2;
+  }
+  .chip-input{appearance:textfield; caret-color:#e8edf3;}
+  .chip-input::-webkit-outer-spin-button,
+  .chip-input::-webkit-inner-spin-button{appearance:none;margin:0}
+  .chip-select{
+    appearance:none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, #9aa3ad 50%),
+      linear-gradient(135deg, #9aa3ad 50%, transparent 50%);
+    background-position:calc(100% - 16px) 14px, calc(100% - 10px) 14px;
+    background-size:6px 6px,6px 6px;background-repeat:no-repeat;
+    touch-action:manipulation;
+  }
+
+  /* Tabular digits; inputs use sans to avoid iOS mono clipping */
+  .mono{font-variant-numeric:tabular-nums;font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+  input.mono, select.mono{
+    font-family:ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-variant-numeric:tabular-nums;
+    font-feature-settings:"tnum" 1;
+  }
+
+  .input-suffix{position:relative;width:100%;min-width:0}
+  .input-suffix .suffix{
+    position:absolute;right:.7em;top:50%;transform:translateY(-50%);
+    color:#bfc6cf;font-weight:700;font-size:calc(var(--f-chip) - 1px);pointer-events:none
+  }
+
+  .btn{width:100%;border:none;border-radius:12px;padding:12px 14px;font-weight:800;text-align:center;cursor:pointer;font-size:var(--f-label);touch-action:manipulation}
+  .btn--green{background:var(--green);color:#0d1810}
+  .btn--gray{background:#3a4149;color:#e9edf2;font-weight:700}
+
+  .stat{text-align:center;padding:14px 8px;background:#2a3037;border-radius:12px;border:1px solid #2f363e}
+  .stat .label{color:#ccd2d9;font-weight:600;opacity:.9;margin-bottom:4px;font-size:var(--f-label)}
+  .stat .value{font-size:var(--f-stat);font-weight:800;letter-spacing:.1px;margin-bottom:2px;white-space:nowrap}
+  .stat .hint{color:#9aa3ad;font-size:var(--f-hint)}
+  .stat--with-hint .hint{display:block}
+
+  /* lightweight reference styles */
+  .ref-text{color:#cfd5dc;line-height:1.5;font-size:13px}
+  .ref-text h4{margin:6px 0 6px;font-size:14px;color:#e3e7ec}
+  .ref-text ul{margin:6px 0 0 16px;padding:0}
+  .ref-text li{margin:3px 0}
+  .ref-note{color:#9aa3ad}
+
+  .page{display:none}
+  .page.on{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= PLAY PAGE ================= -->
+  <div id="page-play" class="panel page on" role="region" aria-label="Putting calculator">
+    <div class="grid" style="margin-bottom:12px">
+      <div class="tile">
+        <h3>Putt Length</h3>
+        <div class="control-flank">
+          <!-- Left = DOWN, Right = UP -->
+          <button class="chev" data-step="d" data-delta="-1" aria-label="Decrease length">▼</button>
+          <div class="input-suffix">
+            <input id="lenInput" class="chip-input mono" type="number" step="0.1" min="0.1" value="12" inputmode="decimal" aria-label="Putt length in feet" />
+            <span class="suffix">ft</span>
+          </div>
+          <button class="chev" data-step="d" data-delta="1" aria-label="Increase length">▲</button>
+        </div>
+      </div>
+
+      <div class="tile">
+        <h3>Stimp Speed</h3>
+        <select id="stimpSelect" class="chip-select mono" aria-label="Stimp speed">
+          <option value="8">8 (Slow/Avg)</option>
+          <option value="10" selected>10 (Fast)</option>
+          <option value="12">12 (PGA)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section-title">Slope</div>
+    <div class="grid" style="margin-bottom:12px">
+      <div class="tile">
+        <button id="btnUphill" class="btn btn--green" aria-pressed="true">Uphill</button>
+        <div class="control-flank" style="margin-top:8px">
+          <!-- Left = DOWN, Right = UP -->
+          <button class="chev" data-step="ud" data-delta="-0.5" aria-label="Decrease up/down slope">▼</button>
+          <div class="input-suffix">
+            <input id="udInput" class="chip-input mono" type="number" step="0.5" min="0" max="4" value="2" inputmode="decimal" aria-label="Up/Down slope percent" />
+            <span class="suffix">%</span>
+          </div>
+          <button class="chev" data-step="ud" data-delta="0.5" aria-label="Increase up/down slope">▲</button>
+        </div>
+        <button id="btnDownhill" class="btn btn--gray" style="margin-top:10px" aria-pressed="false">Downhill</button>
+      </div>
+
+      <div class="tile">
+        <button id="btnLTR" class="btn btn--green" aria-pressed="true">Left to Right</button>
+        <div class="control-flank" style="margin-top:8px">
+          <button class="chev" data-step="lr" data-delta="-0.5" aria-label="Decrease side slope">◀</button>
+          <div class="input-suffix">
+            <input id="lrInput" class="chip-input mono" type="number" step="0.5" min="0" max="4" value="2" inputmode="decimal" aria-label="Side slope percent" />
+            <span class="suffix">%</span>
+          </div>
+          <button class="chev" data-step="lr" data-delta="0.5" aria-label="Increase side slope">▶</button>
+        </div>
+        <button id="btnRTL" class="btn btn--gray" style="margin-top:10px" aria-pressed="false">Right to Left</button>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-bottom:12px">
+      <div class="stat stat--with-hint">
+        <div class="label">Plays Like</div>
+        <div id="playsLike" class="value mono">—</div>
+        <div class="hint">(Flat @ Stimp 10)</div>
+      </div>
+      <div class="stat">
+        <div class="label">Aim from Center</div>
+        <div id="aimBig" class="value mono">—</div>
+        <div id="aimHint" class="hint mono" style="display:none">—</div>
+      </div>
+    </div>
+
+    <!-- More info button -->
+    <button id="btnMoreInfo" class="btn btn--gray">More info →</button>
+  </div>
+
+  <!-- ================ REFERENCE PAGE ================ -->
+  <div id="page-reference" class="panel page" role="region" aria-label="Reference">
+    <div class="tile" style="margin-bottom:12px">
+      <h3>Current calculation context</h3>
+      <div id="factorLine" class="mono" style="margin:6px 0 4px;color:#cfd5dc">factor = — (D×factor)</div>
+      <div id="multLine" class="mono" style="margin:4px 0;color:#cfd5dc">break multiplier = —</div>
+      <div class="mono" style="margin-top:6px;color:#9aa3ad">Notes: Stimp options 8/10/12. Slope inputs 0–4% in 0.5% steps.</div>
+    </div>
+
+    <!-- Stimp 10 quick reference + multipliers -->
+    <div class="tile" style="margin-bottom:12px">
+      <h3>Stimp-10 reference</h3>
+      <div class="ref-text">
+        <div class="ref-note">(break starting points on a flat depth green)</div>
+        <ul>
+          <li><span class="mono">1%</span>: Often looks straight; aim outside-edge from <span class="mono">5′</span>.</li>
+          <li><span class="mono">2%</span>: Clear break; outside-edge from <span class="mono">3′</span>.</li>
+          <li><span class="mono">3%</span>: Big breaker; outside-edge from <span class="mono">2′</span>.</li>
+          <li><span class="mono">4%</span>: Very breaky; outside-edge from <span class="mono">1.5′</span>.</li>
+        </ul>
+
+        <h4>Notes</h4>
+        <div>Quick multipliers (useful in your head):</div>
+        <ul>
+          <li>Downhill: <span class="mono">1%→0.821, 2%→0.642, 3%→0.464, 4%→0.284</span></li>
+          <li>Uphill: <span class="mono">1%→1.179, 2%→1.358, 3%→1.537, 4%→1.716</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Downhill table -->
+    <div class="tile" style="margin-bottom:12px">
+      <h3>Downhill <span class="ref-note">(plays longer)</span></h3>
+      <div class="ref-text">
+        <p><span class="mono">1%</span> – Gentle (roughly <span class="mono">2.5/3</span> of the “Plays like flat @ 10 stimp” distance)<br>
+          • <span class="mono">3′ (2′6″)</span> · <span class="mono">6′ (4′11″)</span> · <span class="mono">12′ (9′10″)</span> · <span class="mono">24′ (19′8″)</span> · <span class="mono">48′ (39′5″)</span></p>
+        <p><span class="mono">2%</span> – Moderate (roughly <span class="mono">2/3</span> of the distance)<br>
+          • <span class="mono">3′ (1′11″)</span> · <span class="mono">6′ (3′10″)</span> · <span class="mono">12′ (7′8″)</span> · <span class="mono">24′ (15′5″)</span> · <span class="mono">48′ (30′10″)</span></p>
+        <p><span class="mono">3%</span> – Strong/Steep (roughly half the distance)<br>
+          • <span class="mono">3′ (1′5″)</span> · <span class="mono">6′ (2′9″)</span> · <span class="mono">12′ (5′7″)</span> · <span class="mono">24′ (11′1″)</span> · <span class="mono">48′ (22′3″)</span></p>
+        <p><span class="mono">4%</span> – Severe — rare and normally not legal (roughly <span class="mono">1/3</span> of the distance)<br>
+          • <span class="mono">3′ (0′10″)</span> · <span class="mono">6′ (1′8″)</span> · <span class="mono">12′ (3′5″)</span> · <span class="mono">24′ (6′10″)</span> · <span class="mono">48′ (13′8″)</span></p>
+      </div>
+    </div>
+
+    <!-- Uphill table -->
+    <div class="tile" style="margin-bottom:12px">
+      <h3>Uphill <span class="ref-note">(plays longer)</span></h3>
+      <div class="ref-text">
+        <p><span class="mono">1%</span> – Gentle (<span class="mono">1.25×</span> normal distance)<br>
+          • <span class="mono">3′ (3′6″)</span> · <span class="mono">6′ (7′1″)</span> · <span class="mono">12′ (14′2″)</span> · <span class="mono">24′ (28′4″)</span> · <span class="mono">48′ (56′7″)</span></p>
+        <p><span class="mono">2%</span> – Moderate (<span class="mono">1.5×</span> normal distance)<br>
+          • <span class="mono">3′ (4′1″)</span> · <span class="mono">6′ (8′2″)</span> · <span class="mono">12′ (16′4″)</span> · <span class="mono">24′ (32′7″)</span> · <span class="mono">48′ (65′2″)</span></p>
+        <p><span class="mono">3%</span> – Strong/Steep (<span class="mono">1.75×</span> normal distance)<br>
+          • <span class="mono">3′ (4′7″)</span> · <span class="mono">6′ (9′3″)</span> · <span class="mono">12′ (18′5″)</span> · <span class="mono">24′ (36′11″)</span> · <span class="mono">48′ (73′9″)</span></p>
+        <p><span class="mono">4%</span> – Severe — rare and normally not legal (<span class="mono">2×</span> normal distance)<br>
+          • <span class="mono">3′ (5′2″)</span> · <span class="mono">6′ (10′4″)</span> · <span class="mono">12′ (20′7″)</span> · <span class="mono">24′ (41′2″)</span> · <span class="mono">48′ (82′4″)</span></p>
+      </div>
+    </div>
+
+    <!-- Back button -->
+    <button id="btnBack" class="btn btn--gray">← Back to calculator</button>
+  </div>
+</div>
+
+<script>
+  const K10 = 0.179;
+  function ftToString(ft){ const inches = Math.round(ft*12); const f=Math.floor(inches/12); const i=Math.abs(inches%12); return `${f}' ${i}\"`; }
+  function clampSlope(v){ const c=Math.min(4,Math.max(0,v)); return Math.round(c*2)/2; }
+  function computePlaysLikeFeet(D,S,pct,isDown){ const base=10/S; const factor= base + (isDown?-1:1)*(K10*pct); const eff=Math.max(0.5,D*factor); return {eff,factor,base}; }
+  function computeBreakMultiplier(base,pct,isDown){ const denom= base + (isDown?-1:1)*(K10*pct); if(denom<=0.02) return {mult:8,capped:true}; const m=base/denom; return {mult:Math.min(8,m),capped:m>8}; }
+  function computeAimInches(D,S,lrPct,udPct,isDown){ if(lrPct<=0) return {inches:0,mult:1,capped:false}; const per9At10=5*lrPct; const scaleFlat=(S/10)*(D/9); const aimFlat=per9At10*scaleFlat; const {mult,capped}=computeBreakMultiplier(10/S,udPct,isDown); return {inches:Math.round(aimFlat*mult),mult,capped}; }
+
+  const lenInput=document.getElementById('lenInput');
+  const stimpSelect=document.getElementById('stimpSelect');
+  const udInput=document.getElementById('udInput');
+  const lrInput=document.getElementById('lrInput');
+
+  const playsLikeEl=document.getElementById('playsLike');
+  const aimBigEl=document.getElementById('aimBig');
+  const factorLine=document.getElementById('factorLine');
+  const multLine=document.getElementById('multLine');
+
+  const btnUphill=document.getElementById('btnUphill');
+  const btnDownhill=document.getElementById('btnDownhill');
+  const btnLTR=document.getElementById('btnLTR');
+  const btnRTL=document.getElementById('btnRTL');
+
+  const pagePlay=document.getElementById('page-play');
+  const pageRef=document.getElementById('page-reference');
+  const btnMoreInfo=document.getElementById('btnMoreInfo');
+  const btnBack=document.getElementById('btnBack');
+
+  let isDownhill=false; // Uphill default
+  let isLTR=true;       // Left→Right default
+
+  function showPage(which){
+    pagePlay.classList.toggle('on', which==='play');
+    pageRef.classList.toggle('on', which==='reference');
+    window.scrollTo({top:0, behavior:'instant' in window ? 'instant' : 'auto'});
+  }
+
+  function update(){
+    const D=Math.max(0.1,Number(lenInput.value||0));
+    let udPct=clampSlope(Number(udInput.value||0));
+    let lrPct=clampSlope(Number(lrInput.value||0));
+    udInput.value=udPct; lrInput.value=lrPct;
+    const S=Number(stimpSelect.value);
+
+    const {eff,factor,base}=computePlaysLikeFeet(D,S,udPct,isDownhill);
+    playsLikeEl.textContent=ftToString(eff);
+
+    const {inches,mult,capped}=computeAimInches(D,S,lrPct,udPct,isDownhill);
+    const dirWord = lrPct===0 ? '' : (isLTR ? 'Left' : 'Right');
+    aimBigEl.textContent= lrPct===0? '0\"' : `${inches}\" ${dirWord}`;
+
+    factorLine.textContent=`factor = ${factor.toFixed(3)} (D×factor)`;
+    multLine.textContent=`break multiplier = ×${mult.toFixed(2)}${capped?' (capped)':''}`;
+  }
+
+  /* ---- Press & Hold auto-repeat for ALL arrows ---- */
+  function stepButton(btn){
+    const what=btn.dataset.step; const delta=Number(btn.dataset.delta);
+    if(what==='d')  lenInput.value=Math.max(0.1,Number(lenInput.value||0)+delta);
+    if(what==='ud') udInput.value=clampSlope(Number(udInput.value||0)+delta);
+    if(what==='lr') lrInput.value=clampSlope(Number(lrInput.value||0)+delta);
+    update();
+  }
+  function repeatIntervalFor(what){ return (what==='d') ? 60 : 130; }
+
+  document.querySelectorAll('.chev[data-step]').forEach(btn=>{
+    let holdTimer=null, repeatTimer=null;
+    const start = (e) => {
+      e.preventDefault();
+      if (e.pointerId!=null && btn.setPointerCapture) btn.setPointerCapture(e.pointerId);
+      stepButton(btn);
+      const what=btn.dataset.step;
+      holdTimer=setTimeout(()=>{ repeatTimer=setInterval(()=>stepButton(btn), repeatIntervalFor(what)); }, 350);
+    };
+    const stop = () => {
+      clearTimeout(holdTimer); holdTimer=null;
+      clearInterval(repeatTimer); repeatTimer=null;
+    };
+    btn.addEventListener('pointerdown', start);
+    btn.addEventListener('pointerup', stop);
+    btn.addEventListener('pointercancel', stop);
+    btn.addEventListener('pointerleave', stop);
+    btn.addEventListener('lostpointercapture', stop);
+    btn.addEventListener('pointerout', stop);
+  });
+
+  /* Inputs/select update */
+  [lenInput,udInput,lrInput,stimpSelect].forEach(el=>el.addEventListener('input',update));
+
+  /* Toggle U/D and L/R */
+  function setUD(down){
+    isDownhill=!!down;
+    btnUphill.classList.toggle('btn--green',!isDownhill);
+    btnUphill.classList.toggle('btn--gray',isDownhill);
+    btnUphill.setAttribute('aria-pressed',String(!isDownhill));
+    btnDownhill.classList.toggle('btn--green',isDownhill);
+    btnDownhill.classList.toggle('btn--gray',!isDownhill);
+    btnDownhill.setAttribute('aria-pressed',String(isDownhill));
+    update();
+  }
+  function setLR(ltr){
+    isLTR=!!ltr;
+    btnLTR.classList.toggle('btn--green',isLTR);
+    btnLTR.classList.toggle('btn--gray',!isLTR);
+    btnLTR.setAttribute('aria-pressed',String(isLTR));
+    btnRTL.classList.toggle('btn--green',!isLTR);
+    btnRTL.classList.toggle('btn--gray',isLTR);
+    btnRTL.setAttribute('aria-pressed',String(!isLTR));
+    update();
+  }
+  btnUphill.addEventListener('click',()=>setUD(false));
+  btnDownhill.addEventListener('click',()=>setUD(true));
+  btnLTR.addEventListener('click',()=>setLR(true));
+  btnRTL.addEventListener('click',()=>setLR(false));
+
+  /* Nav buttons */
+  btnMoreInfo.addEventListener('click', ()=>showPage('reference'));
+  btnBack.addEventListener('click', ()=>showPage('play'));
+
+  /* --- Prevent accidental double-tap zoom (keeps pinch zoom) --- */
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', (e)=>{
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) { e.preventDefault(); }
+    lastTouchEnd = now;
+  }, {passive:false});
+
+  update();
+</script>
+</body>
+</html>
